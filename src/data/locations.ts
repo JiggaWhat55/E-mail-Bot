@@ -6,9 +6,18 @@ export const LOCATIONS: Record<string, Location> = {
     name: 'Main Bridge',
     description: 'The nerve center of the USS Enterprise-D. Crew members work at various stations. The main viewscreen dominates the forward wall.',
     availableActions: ['scan', 'hail', 'status', 'warp'], // Added warp command
-    exits: ['turbolift'],
+    exits: ['turbolift', 'observation'],
     items: ['padd'],
     npcs: ['picard', 'worf']
+  },
+  observation: {
+    id: 'observation',
+    name: 'Observation Lounge',
+    description: 'A quiet meeting room behind the main bridge. A large table fills the center. Stars streak by the windows.',
+    availableActions: ['talk', 'briefing'],
+    exits: ['bridge'],
+    items: [],
+    npcs: ['macet']
   },
   turbolift: {
     id: 'turbolift',

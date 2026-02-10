@@ -323,6 +323,11 @@ export const MainGame: FC = () => {
                                       className="text-left text-lcars-blue hover:text-lcars-orange hover:bg-white/10 px-2 py-1 rounded font-mono"
                                    >
                                       {opt.id}. {opt.text}
+                                      {opt.skillCheck && (
+                                         <span className="ml-2 text-xs text-lcars-purple opacity-70">
+                                             [{opt.skillCheck.attribute} + {opt.skillCheck.skill}]
+                                         </span>
+                                      )}
                                    </button>
                                 ))
                              ) : (

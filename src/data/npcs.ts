@@ -118,5 +118,67 @@ export const NPCS: Record<string, NPC> = {
         options: []
       }
     }
+  },
+  'macet': {
+    id: 'macet',
+    name: 'Gul Macet',
+    description: 'A stern Cardassian Gul with a scar running down his neck.',
+    startingNodeId: 'root',
+    dialogue: {
+      'root': {
+        id: 'root',
+        text: 'So, the Federation sends an Ensign to negotiate. Typical arrogance.',
+        options: [
+          {
+            id: '1',
+            text: 'I assure you, I speak with the full authority of Captain Picard.',
+            nextNodeId: 'insulted', // Fallback/Fail
+            skillCheck: { attribute: 'Presence', skill: 'Diplomacy', difficulty: 'challenging' },
+            successNodeId: 'impressed',
+            failNodeId: 'insulted'
+          },
+          { id: '2', text: 'We are here to talk peace, Gul Macet.', nextNodeId: 'peace' }
+        ]
+      },
+      'impressed': {
+        id: 'impressed',
+        text: 'Hmph. Perhaps you have some backbone after all. Very well. What are your terms?',
+        options: [
+            { id: '1', text: 'We propose a demilitarized zone in the Parallax sector.', nextNodeId: 'dmz' }
+        ]
+      },
+      'insulted': {
+        id: 'insulted',
+        text: 'Don\'t waste my time with empty platitudes. Bring me your Captain.',
+        options: [] // End dialogue
+      },
+      'peace': {
+         id: 'peace',
+         text: 'Peace is for the weak. We want the mineral rights to the sector.',
+         options: [
+             { id: '1', text: 'Those rights belong to the Bajorans.', nextNodeId: 'insulted' },
+             {
+                id: '2',
+                text: 'Perhaps we can share the surveys?',
+                nextNodeId: 'insulted',
+                skillCheck: { attribute: 'Intellect', skill: 'Diplomacy', difficulty: 'difficult' },
+                successNodeId: 'impressed',
+                failNodeId: 'insulted'
+             }
+         ]
+      },
+      'dmz': {
+         id: 'dmz',
+         text: 'Acceptable. Assuming you remove your listening posts.',
+         options: [
+             { id: '1', text: 'Agreed.', nextNodeId: 'agreed' }
+         ]
+      },
+      'agreed': {
+          id: 'agreed',
+          text: 'Then we have an accord.',
+          options: []
+      }
+    }
   }
 };

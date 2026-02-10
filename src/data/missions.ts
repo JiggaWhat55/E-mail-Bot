@@ -29,5 +29,18 @@ export const MISSIONS: Record<string, Mission> = {
       xp: 500,
       items: ['phaser_rifle'] // Hypothetical reward
     }
+  },
+  'cardassian_summit': {
+    id: 'cardassian_summit',
+    title: 'Mission 3: The Parallax Accord',
+    description: 'We are to mediate a territorial dispute with the Cardassian Union. Gul Macet is waiting in the Observation Lounge.',
+    objectives: [
+       { id: 'visit_observation', description: 'Proceed to the Observation Lounge from the Bridge.', completed: false },
+       { id: 'negotiate_macet', description: 'Negotiate with Gul Macet. Ensure a peaceful resolution.', completed: false },
+       { id: 'report_picard', description: 'Report the success to Captain Picard on the Bridge.', completed: false }
+    ],
+    rewards: {
+        xp: 1000
+    }
   }
 };

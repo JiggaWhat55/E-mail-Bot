@@ -120,6 +120,22 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                newObjectivesCompleted.push('defeat_romulan');
              }
           }
+        } else if (prev.activeMissionId === 'cardassian_summit') {
+           if (event === 'VISIT_LOCATION' && data === 'observation') {
+             if (!prev.completedObjectives.includes('visit_observation')) {
+               newObjectivesCompleted.push('visit_observation');
+             }
+           }
+           if (event === 'DIALOGUE_SUCCESS' && data === 'macet') {
+             if (!prev.completedObjectives.includes('negotiate_macet')) {
+               newObjectivesCompleted.push('negotiate_macet');
+             }
+           }
+           if (event === 'TALK' && data === 'picard') {
+             if (prev.completedObjectives.includes('negotiate_macet') && !prev.completedObjectives.includes('report_picard')) {
+                newObjectivesCompleted.push('report_picard');
+             }
+           }
         }
 
         if (newObjectivesCompleted.length > 0) {
@@ -137,6 +153,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                missionComplete = true;
            }
            if (prev.activeMissionId === 'neutral_zone' && newObjectivesCompleted.includes('defeat_romulan')) {
+               missionComplete = true;
+           }
+           if (prev.activeMissionId === 'cardassian_summit' && newObjectivesCompleted.includes('report_picard')) {
                missionComplete = true;
            }
 
@@ -175,6 +194,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               newState.log.push({
                   id: Date.now().toString() + Math.random(),
                   text: `Mission Briefing: ${MISSIONS['neutral_zone'].description}`,
+                  timestamp: prev.stardate.toFixed(1),
+                  type: 'narrative' as const
+              });
+           } else if (missionComplete && prev.activeMissionId === 'neutral_zone') {
+              newState.activeMissionId = 'cardassian_summit';
+              newState.completedObjectives = [];
+              newState.log.push({
+                  id: Date.now().toString() + Math.random(),
+                  text: `NEW MISSION: ${MISSIONS['cardassian_summit'].title}`,
+                  timestamp: prev.stardate.toFixed(1),
+                  type: 'system' as const
+              });
+              newState.log.push({
+                  id: Date.now().toString() + Math.random(),
+                  text: `Mission Briefing: ${MISSIONS['cardassian_summit'].description}`,
                   timestamp: prev.stardate.toFixed(1),
                   type: 'narrative' as const
               });
@@ -239,6 +273,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
      }
      prevEnemyRef.current = state.enemy;
   }, [state.enemy, state.gamePhase, triggerEvent]);
+
+  // Effect to detect dialogue success
+  useEffect(() => {
+     if (state.activeDialogue && state.activeDialogue.npcId === 'macet' && state.activeDialogue.nodeId === 'agreed') {
+         triggerEvent('DIALOGUE_SUCCESS', 'macet');
+     }
+  }, [state.activeDialogue, triggerEvent]);
 
 
   const createCharacter = (char: Character) => {
@@ -610,15 +651,43 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         if (!option) return prev;
 
-        const nextNode = npc.dialogue[option.nextNodeId];
+        let nextNodeId = option.nextNodeId;
+        let skillCheckResult: TaskResult | null = null;
+
+        if (option.skillCheck && prev.character) {
+            const attr = prev.character.attributes[option.skillCheck.attribute]?.value || 0;
+            const skill = prev.character.skills[option.skillCheck.skill]?.value || 0;
+            skillCheckResult = rollTask(attr, skill, option.skillCheck.difficulty);
+
+            if (skillCheckResult.success) {
+               if (option.successNodeId) nextNodeId = option.successNodeId;
+            } else {
+               if (option.failNodeId) nextNodeId = option.failNodeId;
+            }
+        }
+
+        const nextNode = npc.dialogue[nextNodeId];
+
+        let newLog: LogEntry[] = [...prev.log, { id: Date.now().toString(), text: `You: "${option.text}"`, type: 'narrative' as const, timestamp: prev.stardate.toFixed(1) }];
+
+        if (skillCheckResult) {
+            newLog.push({
+                id: Date.now().toString() + 'check',
+                text: skillCheckResult.success
+                   ? `SUCCESS: ${option.skillCheck!.attribute} + ${option.skillCheck!.skill} Check Passed`
+                   : `FAILURE: ${option.skillCheck!.attribute} + ${option.skillCheck!.skill} Check Failed`,
+                type: skillCheckResult.success ? 'system' : 'combat',
+                timestamp: prev.stardate.toFixed(1)
+            });
+        }
+
         if (!nextNode) {
            // End dialogue if next node invalid or empty
            return {
               ...prev,
               gamePhase: 'playing',
               activeDialogue: null,
-              log: [...prev.log,
-                 { id: Date.now().toString(), text: `You: "${option.text}"`, type: 'narrative' as const, timestamp: prev.stardate.toFixed(1) },
+              log: [...newLog,
                  { id: Date.now().toString() + '1', text: '(Dialogue Ended)', type: 'system' as const, timestamp: prev.stardate.toFixed(1) }
               ]
            };
@@ -626,9 +695,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         return {
            ...prev,
-           activeDialogue: { ...prev.activeDialogue, nodeId: option.nextNodeId },
-           log: [...prev.log,
-              { id: Date.now().toString(), text: `You: "${option.text}"`, type: 'narrative' as const, timestamp: prev.stardate.toFixed(1) },
+           activeDialogue: { ...prev.activeDialogue, nodeId: nextNodeId },
+           log: [...newLog,
               { id: Date.now().toString() + '1', text: `${npc.name}: "${nextNode.text}"`, type: 'narrative' as const, timestamp: prev.stardate.toFixed(1) }
            ]
         };

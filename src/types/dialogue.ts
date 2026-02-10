@@ -1,8 +1,19 @@
+import type { TaskDifficulty } from '../logic/dice';
+
+export interface SkillCheck {
+  attribute: string;
+  skill: string;
+  difficulty: TaskDifficulty;
+}
+
 export interface DialogueOption {
   id: string;
   text: string;
   nextNodeId: string;
   condition?: (state: any) => boolean;
+  skillCheck?: SkillCheck;
+  successNodeId?: string;
+  failNodeId?: string;
 }
 
 export interface DialogueNode {
