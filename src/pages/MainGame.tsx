@@ -6,9 +6,11 @@ import { LogDisplay } from '../components/LogDisplay';
 import { StatDisplay } from '../components/StatDisplay';
 import { LOCATIONS } from '../data/locations';
 import { MISSIONS } from '../data/missions';
+import { ITEMS } from '../data/items';
+import { NPCS } from '../data/npcs';
 
 export const MainGame: FC = () => {
-  const { state, addLog, setLocation, triggerEvent, startCombat, playerAttack, performTask } = useGame();
+  const { state, addLog, setLocation, triggerEvent, startCombat, playerAttack, performTask, pickupItem, dropItem, useItem, setPower, startDialogue, answerDialogue, endDialogue } = useGame();
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -21,15 +23,27 @@ export const MainGame: FC = () => {
   const handleCommand = (cmd: string) => {
     if (!cmd.trim()) return;
 
-    addLog(`> ${cmd}`, 'narrative');
+    // Echo user input unless in dialogue (cleaner log)
+    if (state.gamePhase !== 'dialogue') {
+       addLog(`> ${cmd}`, 'narrative');
+    }
 
     const command = cmd.trim().toUpperCase();
     const parts = command.split(' ');
     const mainCmd = parts[0];
-    const arg = parts.slice(1).join(' '); // Rejoin the rest as arguments
+    const arg = parts.slice(1).join(' ');
 
-    if (state.gamePhase === 'combat') {
-       // Combat Commands
+    if (state.gamePhase === 'dialogue') {
+       // Dialogue Mode
+       if (mainCmd === 'EXIT' || mainCmd === 'BYE') {
+          endDialogue();
+       } else {
+          // Check if number
+          if (state.activeDialogue) {
+             answerDialogue(cmd.trim()); // Pass raw ID (numbers usually)
+          }
+       }
+    } else if (state.gamePhase === 'combat') {
        if (mainCmd === 'FIRE') {
           if (arg === 'PHASERS' || arg === 'PHASER') {
              playerAttack('phasers');
@@ -40,35 +54,84 @@ export const MainGame: FC = () => {
           }
        } else if (mainCmd === 'STATUS') {
           addLog(`Shields: ${state.ship.shields}%\nHull: ${state.ship.hull}%\nTorpedoes: ${state.ship.torpedoes}`, 'system');
+          addLog(`Power: Shields ${state.ship.power.shields}% | Weapons ${state.ship.power.weapons}% | Engines ${state.ship.power.engines}%`, 'system');
           if (state.enemy) {
              addLog(`Target: ${state.enemy.name}\nShields: ${state.enemy.shields}%\nHull: ${state.enemy.hull}%`, 'combat');
           }
+       } else if (mainCmd === 'POWER') {
+          const powerParts = arg.split(' ');
+          const system = powerParts[0]?.toLowerCase();
+          const amount = parseInt(powerParts[1]);
+
+          if (['shields', 'weapons', 'engines'].includes(system) && !isNaN(amount)) {
+             setPower(system as 'shields' | 'weapons' | 'engines', amount);
+          } else {
+             addLog('Usage: POWER [SHIELDS|WEAPONS|ENGINES] [0-100]', 'system');
+          }
        } else if (mainCmd === 'HELP') {
-          addLog(`Combat Commands:\n- FIRE PHASERS\n- FIRE TORPEDOES\n- STATUS`, 'system');
+          addLog(`Combat Commands:\n- FIRE PHASERS\n- FIRE TORPEDOES\n- POWER [SYSTEM] [AMOUNT]\n- STATUS`, 'system');
        } else {
-          addLog('Combat engaged! Focus on tactical systems! (Type FIRE PHASERS or FIRE TORPEDOES)', 'combat');
+          addLog('Combat engaged! Focus on tactical systems!', 'combat');
        }
     } else {
        // Normal Commands
        if (mainCmd === 'STATUS') {
           addLog(`Ship Systems: NOMINAL\nShields: ${state.ship.shields}%\nHull: ${state.ship.hull}%\nWarp Core: ONLINE\nLocation: SECTOR 001`, 'system');
+          addLog(`Power: Shields ${state.ship.power.shields}% | Weapons ${state.ship.power.weapons}% | Engines ${state.ship.power.engines}%`, 'system');
        } else if (mainCmd === 'SCAN') {
           const result = performTask('Intellect', 'Science', 'routine', 'Scanning area');
           if (result && result.success) {
-             addLog(`Scan Complete: No anomalies detected. Sector secure.`, 'narrative');
+             addLog(`Sensors Report: ${state.currentLocation?.description || 'Standard readings.'}`, 'narrative');
              triggerEvent('ACTION_SCAN');
           } else {
              addLog(`Scan inconclusive. Sensors experiencing interference.`, 'narrative');
+          }
+       } else if (mainCmd === 'WARP') {
+          if (!arg) {
+              addLog('Usage: WARP [LOCATION]', 'system');
+          } else {
+              const targetKey = Object.keys(LOCATIONS).find(k =>
+                  LOCATIONS[k].name.toUpperCase().includes(arg) || k.toUpperCase() === arg
+              );
+
+              if (targetKey) {
+                 if (targetKey === 'neutral_zone') {
+                     if (state.currentLocation?.id === 'bridge') {
+                        setLocation(LOCATIONS[targetKey]);
+                        triggerEvent('WARP', targetKey);
+                        addLog(`WARP ENGAGED. En route to ${LOCATIONS[targetKey].name}...`, 'system');
+                     } else {
+                        addLog('Warp command only available from Main Bridge.', 'system');
+                     }
+                 } else if (targetKey === 'bridge') {
+                     if (state.currentLocation?.id === 'neutral_zone') {
+                        setLocation(LOCATIONS[targetKey]);
+                        addLog('Warping back to Sector 001 (USS Enterprise).', 'narrative');
+                     } else {
+                        addLog('Already on the ship. Use MOVE.', 'system');
+                     }
+                 } else {
+                     addLog(`Cannot warp to ${LOCATIONS[targetKey].name}. Internal location.`, 'system');
+                 }
+              } else {
+                 addLog(`Unknown destination: ${arg}`, 'system');
+              }
           }
        } else if (mainCmd === 'HELP') {
           addLog(`Available commands:
 - MOVE [LOCATION] (or GO [LOCATION])
 - LOOK (Describe current area)
+- TALK [NPC]
 - STATUS (Ship status)
 - SCAN (Sensors)
+- WARP [LOCATION] (Ship movement)
 - RED ALERT (Combat stations)
 - MISSION (View objectives)
 - INVENTORY
+- PICKUP [ITEM]
+- DROP [ITEM]
+- USE [ITEM]
+- POWER [SYSTEM] [AMOUNT]
 - SIMULATE (Start Combat Sim)`, 'system');
        } else if (mainCmd === 'RED ALERT') {
           addLog(`CONDITION RED! SHIELDS UP! WEAPONS ARMED!`, 'combat');
@@ -77,6 +140,16 @@ export const MainGame: FC = () => {
        } else if (mainCmd === 'LOOK') {
           if (state.currentLocation) {
              addLog(`${state.currentLocation.name}\n${state.currentLocation.description}`, 'narrative');
+
+             if (state.currentLocation.items && state.currentLocation.items.length > 0) {
+                 const itemNames = state.currentLocation.items.map(id => ITEMS[id]?.name || id).join(', ');
+                 addLog(`Items here: ${itemNames}`, 'narrative');
+             }
+             if (state.currentLocation.npcs && state.currentLocation.npcs.length > 0) {
+                 const npcNames = state.currentLocation.npcs.map(id => NPCS[id]?.name || id).join(', ');
+                 addLog(`Personnel here: ${npcNames}`, 'narrative');
+             }
+
              const exitNames = state.currentLocation.exits.map(id => LOCATIONS[id]?.name || id).join(', ');
              addLog(`Exits: ${exitNames}`, 'system');
           } else {
@@ -103,7 +176,6 @@ export const MainGame: FC = () => {
                 addLog(`Available exits: ${exitNames}`, 'system');
              }
           } else {
-             // Find matching exit
              if (state.currentLocation) {
                 const targetId = state.currentLocation.exits.find(id => {
                    const loc = LOCATIONS[id];
@@ -116,13 +188,88 @@ export const MainGame: FC = () => {
                    addLog(`Cannot move to '${arg}'. Check available exits.`, 'system');
                 }
              } else {
-                // Fallback
                 const targetKey = Object.keys(LOCATIONS).find(k => LOCATIONS[k].name.toUpperCase().includes(arg));
                 if (targetKey) {
                    setLocation(LOCATIONS[targetKey]);
                 } else {
                    addLog('Navigation systems offline.', 'combat');
                 }
+             }
+          }
+       } else if (mainCmd === 'INVENTORY' || mainCmd === 'INV' || mainCmd === 'I') {
+          if (state.inventory.length === 0) {
+              addLog('Inventory empty.', 'system');
+          } else {
+              addLog('INVENTORY:', 'system');
+              state.inventory.forEach(id => {
+                  const item = ITEMS[id];
+                  addLog(`- ${item ? item.name : id}`, 'narrative');
+              });
+          }
+       } else if (mainCmd === 'PICKUP' || mainCmd === 'GET' || mainCmd === 'TAKE') {
+           if (!arg) {
+               addLog('Pickup what?', 'system');
+           } else {
+               const itemId = state.currentLocation?.items.find(id => {
+                   const item = ITEMS[id];
+                   return item.name.toUpperCase().includes(arg) || id.toUpperCase() === arg;
+               });
+               if (itemId) {
+                   pickupItem(itemId);
+               } else {
+                   addLog(`No item '${arg}' found here.`, 'system');
+               }
+           }
+       } else if (mainCmd === 'DROP') {
+           if (!arg) {
+               addLog('Drop what?', 'system');
+           } else {
+               const itemId = state.inventory.find(id => {
+                   const item = ITEMS[id];
+                   return item.name.toUpperCase().includes(arg) || id.toUpperCase() === arg;
+               });
+               if (itemId) {
+                   dropItem(itemId);
+               } else {
+                   addLog(`You don't have '${arg}'.`, 'system');
+               }
+           }
+       } else if (mainCmd === 'USE') {
+           if (!arg) {
+               addLog('Use what?', 'system');
+           } else {
+               const itemId = state.inventory.find(id => {
+                   const item = ITEMS[id];
+                   return item.name.toUpperCase().includes(arg) || id.toUpperCase() === arg;
+               });
+               if (itemId) {
+                   useItem(itemId);
+               } else {
+                   addLog(`You don't have '${arg}'.`, 'system');
+               }
+           }
+       } else if (mainCmd === 'POWER') {
+          const powerParts = arg.split(' ');
+          const system = powerParts[0]?.toLowerCase();
+          const amount = parseInt(powerParts[1]);
+
+          if (['shields', 'weapons', 'engines'].includes(system) && !isNaN(amount)) {
+             setPower(system as 'shields' | 'weapons' | 'engines', amount);
+          } else {
+             addLog('Usage: POWER [SHIELDS|WEAPONS|ENGINES] [0-100]', 'system');
+          }
+       } else if (mainCmd === 'TALK' || mainCmd === 'SPEAK') {
+          if (!arg) {
+             addLog('Talk to whom?', 'system');
+          } else {
+             const npcId = state.currentLocation?.npcs.find(id => {
+                const npc = NPCS[id];
+                return npc.name.toUpperCase().includes(arg) || id.toUpperCase() === arg;
+             });
+             if (npcId) {
+                startDialogue(npcId);
+             } else {
+                addLog(`No one named '${arg}' is here.`, 'system');
              }
           }
        } else {
@@ -159,6 +306,38 @@ export const MainGame: FC = () => {
                     </div>
                  )
               )}
+
+              {/* Dialogue Options Overlay */}
+              {state.gamePhase === 'dialogue' && state.activeDialogue && (
+                 <div className="absolute bottom-0 left-0 w-full bg-black/80 border-t border-lcars-blue p-4">
+                    {(() => {
+                       const npc = NPCS[state.activeDialogue.npcId];
+                       const node = npc.dialogue[state.activeDialogue.nodeId];
+                       return (
+                          <div className="grid grid-cols-1 gap-2">
+                             {node.options.length > 0 ? (
+                                node.options.map(opt => (
+                                   <button
+                                      key={opt.id}
+                                      onClick={() => answerDialogue(opt.id)}
+                                      className="text-left text-lcars-blue hover:text-lcars-orange hover:bg-white/10 px-2 py-1 rounded font-mono"
+                                   >
+                                      {opt.id}. {opt.text}
+                                   </button>
+                                ))
+                             ) : (
+                                <button
+                                   onClick={() => endDialogue()}
+                                   className="text-left text-lcars-blue hover:text-lcars-orange hover:bg-white/10 px-2 py-1 rounded font-mono"
+                                >
+                                   (End Conversation)
+                                </button>
+                             )}
+                          </div>
+                       );
+                    })()}
+                 </div>
+              )}
            </div>
 
            {/* Command Input Area */}
@@ -171,7 +350,7 @@ export const MainGame: FC = () => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCommand(input)}
                 className={`flex-1 bg-transparent border-b-2 ${state.gamePhase === 'combat' ? 'border-lcars-red text-lcars-red placeholder-lcars-red/30 focus:border-red-400' : 'border-lcars-orange text-lcars-orange placeholder-lcars-orange/30 focus:border-lcars-light-orange'} p-2 font-mono text-xl focus:outline-none transition-colors duration-300`}
-                placeholder="ENTER COMMAND..."
+                placeholder={state.gamePhase === 'dialogue' ? "SELECT OPTION..." : "ENTER COMMAND..."}
                 autoFocus
               />
               <LCARSButton label="ENGAGE" color={state.gamePhase === 'combat' ? 'red' : 'orange'} onClick={() => handleCommand(input)} className="w-auto mb-0" />
@@ -188,6 +367,26 @@ export const MainGame: FC = () => {
               </h3>
 
               <div className="space-y-4">
+                 {/* Power Distribution Panel */}
+                 <div className="bg-black/50 p-2 rounded border border-lcars-orange/30 mb-2">
+                    <h4 className="text-xs text-lcars-yellow mb-1 uppercase">Power Distribution</h4>
+                    {['shields', 'weapons', 'engines'].map(sys => {
+                       const val = state.ship.power[sys as keyof typeof state.ship.power];
+                       return (
+                          <div key={sys} className="flex items-center justify-between mb-1">
+                             <span className="text-[10px] text-lcars-light-blue uppercase w-12">{sys.charAt(0)}: {val}%</span>
+                             <div className="flex-1 mx-2 h-1 bg-gray-900 rounded-full">
+                                <div className="h-full bg-lcars-yellow" style={{ width: `${val}%` }}></div>
+                             </div>
+                             <div className="flex gap-1">
+                                <button onClick={() => setPower(sys as any, val - 10)} className="text-[10px] bg-lcars-red text-black w-4 rounded">-</button>
+                                <button onClick={() => setPower(sys as any, val + 10)} className="text-[10px] bg-lcars-blue text-black w-4 rounded">+</button>
+                             </div>
+                          </div>
+                       );
+                    })}
+                 </div>
+
                  {state.gamePhase === 'combat' ? (
                     <>
                        <div className="bg-black/50 p-2 rounded border border-lcars-red/30 mb-2">
@@ -223,6 +422,7 @@ export const MainGame: FC = () => {
                        <LCARSButton label="Look Around" color="purple" onClick={() => handleCommand('LOOK')} />
                        <LCARSButton label="Status" color="yellow" onClick={() => handleCommand('STATUS')} />
                        <LCARSButton label="Mission" color="orange" onClick={() => handleCommand('MISSION')} />
+                       <LCARSButton label="Inventory" color="orange" onClick={() => handleCommand('INVENTORY')} />
                        <LCARSButton label="Simulate Combat" color="red" onClick={() => handleCommand('SIMULATE')} className="opacity-50 hover:opacity-100" />
 
                        <div className="pt-4 border-t border-lcars-orange/30">

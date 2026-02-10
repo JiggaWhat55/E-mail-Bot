@@ -48,6 +48,8 @@ export interface Location {
   description: string;
   availableActions: string[]; // Action IDs
   exits: string[]; // Location IDs
+  items: string[]; // Item IDs
+  npcs: string[]; // NPC IDs
 }
 
 export interface ShipStatus {
@@ -56,6 +58,11 @@ export interface ShipStatus {
   hull: number;
   maxHull: number;
   torpedoes: number;
+  power: {
+    shields: number; // 0-100%
+    weapons: number; // 0-100%
+    engines: number; // 0-100%
+  };
 }
 
 export interface Enemy {
@@ -67,17 +74,23 @@ export interface Enemy {
   damage: number;
 }
 
+export interface DialogueState {
+  npcId: string;
+  nodeId: string;
+}
+
 export interface GameState {
   character: Character | null;
   currentLocation: Location | null;
   log: LogEntry[];
   stardate: number;
-  inventory: string[];
+  inventory: string[]; // Item IDs
   activeMissionId: string | null;
   completedObjectives: string[];
-  gamePhase: 'creation' | 'playing' | 'combat' | 'gameover';
+  gamePhase: 'creation' | 'playing' | 'combat' | 'gameover' | 'dialogue';
   ship: ShipStatus;
   enemy: Enemy | null;
+  activeDialogue: DialogueState | null;
 }
 
 export interface Action {

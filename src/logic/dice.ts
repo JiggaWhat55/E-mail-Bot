@@ -10,10 +10,10 @@ export interface TaskResult {
 }
 
 export const DIFFICULTY_MODIFIERS: Record<TaskDifficulty, number> = {
-  routine: 0,
-  challenging: -2,
-  difficult: -4,
-  extreme: -6,
+  routine: 5,
+  challenging: 0,
+  difficult: -2,
+  extreme: -5,
 };
 
 export const rollTask = (
