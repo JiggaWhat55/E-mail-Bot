@@ -58,6 +58,10 @@ export interface ShipStatus {
   hull: number;
   maxHull: number;
   torpedoes: number;
+  phaserLevel: number; // 0-10, increases damage
+  shieldLevel: number; // 0-10, increases max shields
+  engineLevel: number; // 0-10, increases dodge
+  evasive?: boolean; // Temporary flag for evasive maneuvers
   power: {
     shields: number; // 0-100%
     weapons: number; // 0-100%

@@ -42,5 +42,18 @@ export const MISSIONS: Record<string, Mission> = {
     rewards: {
         xp: 1000
     }
+  },
+  'resistance': {
+    id: 'resistance',
+    title: 'Mission 4: Resistance',
+    description: 'A Borg Scout Ship has been detected in Sector 001. It is adapting to our frequencies. Upgrade the ship and intercept immediately.',
+    objectives: [
+       { id: 'upgrade_ship', description: 'Perform at least one system upgrade in Engineering.', completed: false },
+       { id: 'intercept_borg', description: 'Warp to the Wolf 359 Sector (WARP WOLF 359) to intercept.', completed: false },
+       { id: 'defeat_borg', description: 'Destroy the Borg Scout Ship.', completed: false }
+    ],
+    rewards: {
+        xp: 2000
+    }
   }
 };

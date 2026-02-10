@@ -90,5 +90,14 @@ export const LOCATIONS: Record<string, Location> = {
     exits: [], // Cannot exit via turbolift, must warp back
     items: [],
     npcs: []
+  },
+  wolf_359: {
+    id: 'wolf_359',
+    name: 'Wolf 359',
+    description: 'A graveyard of Federation ships. Debris floats everywhere. A small Borg Scout Ship is scanning the wreckage.',
+    availableActions: ['scan', 'hail', 'warp'],
+    exits: [],
+    items: [],
+    npcs: []
   }
 };

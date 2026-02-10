@@ -18,6 +18,8 @@ interface GameContextType {
   playerAttack: (weapon: 'phasers' | 'torpedoes') => void;
   improveAttribute: (attrName: string) => void;
   improveSkill: (skillName: string) => void;
+  upgradeShip: (system: 'shields' | 'phasers' | 'engines') => void;
+  combatAction: (action: 'evasive' | 'repair') => void;
   resetGame: () => void;
   pickupItem: (itemId: string) => void;
   dropItem: (itemId: string) => void;
@@ -43,6 +45,9 @@ const defaultState: GameState = {
     hull: 100,
     maxHull: 100,
     torpedoes: 10,
+    phaserLevel: 0,
+    shieldLevel: 0,
+    engineLevel: 0,
     power: {
       shields: 33,
       weapons: 33,
@@ -136,6 +141,22 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                 newObjectivesCompleted.push('report_picard');
              }
            }
+        } else if (prev.activeMissionId === 'resistance') {
+            if (event === 'UPGRADE_SHIP') {
+               if (!prev.completedObjectives.includes('upgrade_ship')) {
+                  newObjectivesCompleted.push('upgrade_ship');
+               }
+            }
+            if (event === 'WARP' && data === 'wolf_359') {
+               if (!prev.completedObjectives.includes('intercept_borg')) {
+                  newObjectivesCompleted.push('intercept_borg');
+               }
+            }
+            if (event === 'COMBAT_VICTORY' && (data === 'Borg Scout' || data === 'Borg')) {
+               if (!prev.completedObjectives.includes('defeat_borg')) {
+                  newObjectivesCompleted.push('defeat_borg');
+               }
+            }
         }
 
         if (newObjectivesCompleted.length > 0) {
@@ -156,6 +177,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                missionComplete = true;
            }
            if (prev.activeMissionId === 'cardassian_summit' && newObjectivesCompleted.includes('report_picard')) {
+               missionComplete = true;
+           }
+           if (prev.activeMissionId === 'resistance' && newObjectivesCompleted.includes('defeat_borg')) {
                missionComplete = true;
            }
 
@@ -212,6 +236,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                   timestamp: prev.stardate.toFixed(1),
                   type: 'narrative' as const
               });
+           } else if (missionComplete && prev.activeMissionId === 'cardassian_summit') {
+               newState.activeMissionId = 'resistance';
+               newState.completedObjectives = [];
+               newState.log.push({
+                  id: Date.now().toString() + Math.random(),
+                  text: `NEW MISSION: ${MISSIONS['resistance'].title}`,
+                  timestamp: prev.stardate.toFixed(1),
+                  type: 'system' as const
+              });
+              newState.log.push({
+                  id: Date.now().toString() + Math.random(),
+                  text: `Mission Briefing: ${MISSIONS['resistance'].description}`,
+                  timestamp: prev.stardate.toFixed(1),
+                  type: 'narrative' as const
+              });
            }
 
            return newState;
@@ -258,11 +297,28 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }));
   }, []);
 
-  // Effect to trigger combat when derelict scanned
+  // Effect to trigger combat when derelict scanned or borg intercepted
   useEffect(() => {
     const lastObjective = state.completedObjectives[state.completedObjectives.length - 1];
     if (state.activeMissionId === 'neutral_zone' && lastObjective === 'scan_derelict' && state.gamePhase !== 'combat') {
        startCombat('Romulan Warbird');
+    }
+    if (state.activeMissionId === 'resistance' && lastObjective === 'intercept_borg' && state.gamePhase !== 'combat') {
+        const borg: Enemy = {
+            name: 'Borg Scout',
+            shields: 200,
+            maxShields: 200,
+            hull: 200,
+            maxHull: 200,
+            damage: 25
+        };
+        // Manual start combat with custom stats
+        setState(prev => ({
+            ...prev,
+            gamePhase: 'combat',
+            enemy: borg,
+            log: [...prev.log, { id: Date.now().toString(), text: `WE ARE THE BORG. RESISTANCE IS FUTILE.`, type: 'combat' as const, timestamp: prev.stardate.toFixed(1) }]
+        }));
     }
   }, [state.completedObjectives, state.activeMissionId, state.gamePhase, startCombat]);
 
@@ -414,6 +470,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         if (hit) {
             let damage = weapon === 'phasers' ? 15 : 30;
+            if (weapon === 'phasers') {
+                damage += (prev.ship.phaserLevel || 0) * 5; // Upgrade bonus
+            }
             damage = Math.floor(damage * (0.5 + (prev.ship.power.weapons / 50)));
 
             newLogs.push({ id: Date.now().toString(), text: `Direct hit with ${weapon}! Damage: ${damage}`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) });
@@ -461,7 +520,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         setState(prev => {
             if (prev.gamePhase !== 'combat' || !prev.enemy) return prev;
 
-            const dodgeChance = prev.ship.power.engines / 200;
+            let dodgeChance = prev.ship.power.engines / 200;
+            dodgeChance += ((prev.ship.engineLevel || 0) * 0.05); // Upgrade bonus
+
             const hit = Math.random() > dodgeChance;
 
             let newLogs: LogEntry[] = [];
@@ -552,6 +613,147 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         }
         return prev;
     });
+  };
+
+  const combatAction = (action: 'evasive' | 'repair') => {
+     setState(prev => {
+         if (prev.gamePhase !== 'combat') return prev;
+
+         let newLog: LogEntry[] = [];
+         let newShip = { ...prev.ship };
+
+         if (action === 'evasive') {
+             if (newShip.power.engines >= 20) {
+                 newShip.evasive = true;
+                 newLog.push({ id: Date.now().toString(), text: `Evasive Maneuvers Delta initiated! Dodge chance increased.`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) });
+             } else {
+                 newLog.push({ id: Date.now().toString(), text: `Insufficient Engine Power for Evasive Maneuvers (Need 20%).`, type: 'combat' as const, timestamp: prev.stardate.toFixed(1) });
+                 return { ...prev, log: [...prev.log, ...newLog] }; // Abort if fail
+             }
+         } else if (action === 'repair') {
+             // Roll for repair
+             const engSkill = prev.character?.skills['Engineering']?.value || 0;
+             const roll = Math.floor(Math.random() * 20) + 1;
+             if (roll <= engSkill + 10) { // Base difficulty 10
+                 const amount = 15 + engSkill * 2;
+                 newShip.hull = Math.min(newShip.maxHull, newShip.hull + amount);
+                 newLog.push({ id: Date.now().toString(), text: `Emergency Repairs successful. Hull +${amount}%`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) });
+             } else {
+                 newLog.push({ id: Date.now().toString(), text: `Repair attempt failed!`, type: 'combat' as const, timestamp: prev.stardate.toFixed(1) });
+             }
+         }
+
+         // Trigger enemy turn after player action
+         setTimeout(() => {
+            setState(prev => {
+                if (prev.gamePhase !== 'combat' || !prev.enemy) return prev;
+
+                let dodgeChance = prev.ship.power.engines / 200;
+                dodgeChance += ((prev.ship.engineLevel || 0) * 0.05);
+                if (prev.ship.evasive) dodgeChance += 0.3; // Bonus
+
+                const hit = Math.random() > dodgeChance;
+                let newLogs: LogEntry[] = [];
+                let newShipState = { ...prev.ship, evasive: false }; // Reset evasive
+
+                if (hit) {
+                    let damage = prev.enemy.damage;
+                    let newShields = newShipState.shields - damage;
+                    let newHull = newShipState.hull;
+
+                    if (newShields < 0) {
+                        newHull += newShields;
+                        newShields = 0;
+                    }
+                    newShipState.shields = newShields;
+                    newShipState.hull = newHull;
+
+                    newLogs.push({ id: Date.now().toString(), text: `Incoming fire! Shields at ${newShields}%`, type: 'combat' as const, timestamp: prev.stardate.toFixed(1) });
+                    if (newHull <= 0) {
+                        newLogs.push({ id: Date.now().toString() + '1', text: 'CRITICAL FAILURE: SHIP DESTROYED.', type: 'combat' as const, timestamp: prev.stardate.toFixed(1) });
+                         return { ...prev, gamePhase: 'gameover', ship: newShipState, log: [...prev.log, ...newLogs] };
+                    }
+                } else {
+                    newLogs.push({ id: Date.now().toString(), text: `Enemy fire missed!`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) });
+                }
+                return { ...prev, ship: newShipState, log: [...prev.log, ...newLogs] };
+            });
+         }, 1500);
+
+         return {
+             ...prev,
+             ship: newShip,
+             log: [...prev.log, ...newLog]
+         };
+     });
+  };
+
+  const upgradeShip = (system: 'shields' | 'phasers' | 'engines') => {
+     setState(prev => {
+         if (!prev.character) return prev;
+
+         let cost = 0;
+         let newShip = { ...prev.ship };
+         let successMsg = "";
+         let currentLevel = 0;
+
+         if (system === 'shields') {
+             currentLevel = prev.ship.shieldLevel || 0;
+             cost = (currentLevel + 1) * 200;
+             if (prev.character.xp >= cost) {
+                 newShip.shieldLevel = (newShip.shieldLevel || 0) + 1;
+                 newShip.maxShields += 20;
+                 newShip.shields = newShip.maxShields; // Free recharge
+                 successMsg = `Shield Generators upgraded to Level ${newShip.shieldLevel}. Max Shields: ${newShip.maxShields}`;
+             }
+         } else if (system === 'phasers') {
+             currentLevel = prev.ship.phaserLevel || 0;
+             cost = (currentLevel + 1) * 200;
+             if (prev.character.xp >= cost) {
+                 newShip.phaserLevel = (newShip.phaserLevel || 0) + 1;
+                 successMsg = `Phaser Banks upgraded to Level ${newShip.phaserLevel}. Output increased.`;
+             }
+         } else if (system === 'engines') {
+             currentLevel = prev.ship.engineLevel || 0;
+             cost = (currentLevel + 1) * 200;
+             if (prev.character.xp >= cost) {
+                 newShip.engineLevel = (newShip.engineLevel || 0) + 1;
+                 successMsg = `Impulse Engines upgraded to Level ${newShip.engineLevel}. Evasion improved.`;
+             }
+         }
+
+         if (successMsg && cost > 0) {
+             // Side effect: if mission 4, trigger upgrade event
+             // But we can't call triggerEvent inside setState reducer easily.
+             // We can use an effect? Or just assume it works.
+             // Let's rely on a flag or just detect changes in stats.
+
+             // Actually, let's just cheat and add the log for the objective if active.
+             let newLogs = [...prev.log, { id: Date.now().toString(), text: successMsg, type: 'system' as const, timestamp: prev.stardate.toFixed(1) }];
+             let newObjectives = prev.completedObjectives;
+
+             if (prev.activeMissionId === 'resistance' && !prev.completedObjectives.includes('upgrade_ship')) {
+                 newObjectives = [...newObjectives, 'upgrade_ship'];
+                 newLogs.push({ id: Date.now().toString() + 'obj', text: 'MISSION UPDATE: Objective Completed.', type: 'system' as const, timestamp: prev.stardate.toFixed(1) });
+             }
+
+             return {
+                 ...prev,
+                 character: {
+                     ...prev.character,
+                     xp: prev.character.xp - cost
+                 },
+                 ship: newShip,
+                 completedObjectives: newObjectives,
+                 log: newLogs
+             };
+         } else {
+             return {
+                 ...prev,
+                 log: [...prev.log, { id: Date.now().toString(), text: `Insufficient XP for ${system} upgrade. Cost: ${cost} XP.`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) }]
+             };
+         }
+     });
   };
 
   const pickupItem = (itemId: string) => {
@@ -733,7 +935,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <GameContext.Provider value={{ state, createCharacter, addLog, advanceStardate, setLocation, performTask, triggerEvent, startCombat, playerAttack, improveAttribute, improveSkill, resetGame, pickupItem, dropItem, useItem, setPower, startDialogue, answerDialogue, endDialogue }}>
+    <GameContext.Provider value={{ state, createCharacter, addLog, advanceStardate, setLocation, performTask, triggerEvent, startCombat, playerAttack, improveAttribute, improveSkill, upgradeShip, combatAction, resetGame, pickupItem, dropItem, useItem, setPower, startDialogue, answerDialogue, endDialogue }}>
       {children}
     </GameContext.Provider>
   );

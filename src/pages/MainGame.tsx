@@ -10,7 +10,7 @@ import { ITEMS } from '../data/items';
 import { NPCS } from '../data/npcs';
 
 export const MainGame: FC = () => {
-  const { state, addLog, setLocation, triggerEvent, startCombat, playerAttack, performTask, pickupItem, dropItem, useItem, setPower, startDialogue, answerDialogue, endDialogue } = useGame();
+  const { state, addLog, setLocation, triggerEvent, startCombat, playerAttack, performTask, pickupItem, dropItem, useItem, setPower, startDialogue, answerDialogue, endDialogue, upgradeShip, combatAction } = useGame();
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -52,6 +52,10 @@ export const MainGame: FC = () => {
           } else {
              addLog('Unknown weapon. Usage: FIRE PHASERS | FIRE TORPEDOES', 'system');
           }
+       } else if (mainCmd === 'EVASIVE') {
+          combatAction('evasive');
+       } else if (mainCmd === 'REPAIR') {
+          combatAction('repair');
        } else if (mainCmd === 'STATUS') {
           addLog(`Shields: ${state.ship.shields}%\nHull: ${state.ship.hull}%\nTorpedoes: ${state.ship.torpedoes}`, 'system');
           addLog(`Power: Shields ${state.ship.power.shields}% | Weapons ${state.ship.power.weapons}% | Engines ${state.ship.power.engines}%`, 'system');
@@ -69,7 +73,7 @@ export const MainGame: FC = () => {
              addLog('Usage: POWER [SHIELDS|WEAPONS|ENGINES] [0-100]', 'system');
           }
        } else if (mainCmd === 'HELP') {
-          addLog(`Combat Commands:\n- FIRE PHASERS\n- FIRE TORPEDOES\n- POWER [SYSTEM] [AMOUNT]\n- STATUS`, 'system');
+          addLog(`Combat Commands:\n- FIRE PHASERS\n- FIRE TORPEDOES\n- EVASIVE (Increases Dodge, Costs Energy)\n- REPAIR (Restores Hull)\n- POWER [SYSTEM] [AMOUNT]\n- STATUS`, 'system');
        } else {
           addLog('Combat engaged! Focus on tactical systems!', 'combat');
        }
@@ -85,6 +89,20 @@ export const MainGame: FC = () => {
              triggerEvent('ACTION_SCAN');
           } else {
              addLog(`Scan inconclusive. Sensors experiencing interference.`, 'narrative');
+          }
+       } else if (mainCmd === 'UPGRADE') {
+          if (state.currentLocation?.id !== 'engineering') {
+             addLog('Upgrades can only be performed in Engineering.', 'system');
+          } else if (!arg) {
+             addLog('Usage: UPGRADE [SHIELDS|PHASERS|ENGINES]', 'system');
+             addLog(`Costs: Shields ${(state.ship.shieldLevel||0)+1 * 200}XP | Phasers ${(state.ship.phaserLevel||0)+1 * 200}XP | Engines ${(state.ship.engineLevel||0)+1 * 200}XP`, 'system');
+          } else {
+             const system = arg.toLowerCase();
+             if (['shields', 'phasers', 'engines'].includes(system)) {
+                 upgradeShip(system as 'shields' | 'phasers' | 'engines');
+             } else {
+                 addLog('Invalid system. Options: SHIELDS, PHASERS, ENGINES', 'system');
+             }
           }
        } else if (mainCmd === 'WARP') {
           if (!arg) {
@@ -131,6 +149,7 @@ export const MainGame: FC = () => {
 - PICKUP [ITEM]
 - DROP [ITEM]
 - USE [ITEM]
+- UPGRADE [SYSTEM] (In Engineering)
 - POWER [SYSTEM] [AMOUNT]
 - SIMULATE (Start Combat Sim)`, 'system');
        } else if (mainCmd === 'RED ALERT') {
@@ -419,6 +438,10 @@ export const MainGame: FC = () => {
 
                        <LCARSButton label="FIRE PHASERS" color="red" onClick={() => handleCommand('FIRE PHASERS')} />
                        <LCARSButton label="FIRE TORPEDOES" color="orange" onClick={() => handleCommand('FIRE TORPEDOES')} />
+                       <div className="flex gap-2">
+                           <LCARSButton label="EVASIVE" color="blue" onClick={() => handleCommand('EVASIVE')} className="flex-1" />
+                           <LCARSButton label="REPAIR" color="blue" onClick={() => handleCommand('REPAIR')} className="flex-1" />
+                       </div>
                        <LCARSButton label="STATUS REPORT" color="yellow" onClick={() => handleCommand('STATUS')} />
                     </>
                  ) : (
