@@ -1,73 +1,64 @@
-# React + TypeScript + Vite
+# Star Trek: The Next Generation - Role Playing Game
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Welcome to the **Star Trek: The Next Generation RPG**. This is a text-based adventure with a rich tactical interface designed to simulate the experience of being a Starfleet officer.
 
-Currently, two official plugins are available:
+## getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+2.  **Start the Game:**
+    ```bash
+    npm run dev
+    ```
+3.  Open your browser to the URL shown (usually `http://localhost:5173`).
 
-## React Compiler
+## How to Play
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Character Creation
+- **Species:** Choose from Human, Vulcan, Klingon, or Betazoid. Each has unique attribute bonuses.
+- **Role:** Select your career path (Command, Operations, Sciences). This determines your starting skills and equipment.
+- **Attributes:** Distribute points into Strength, Agility, Intellect, Willpower, Perception, and Presence.
+- **Skills:** Focus on specific areas like Diplomacy, Engineering, or Phasers.
 
-## Expanding the ESLint configuration
+### Interface (LCARS)
+The game uses a simulated LCARS interface.
+- **Main Display:** Shows the current location description, mission logs, and dialogue.
+- **Command Line:** Type commands here to interact with the world.
+- **Status Panel:** Displays your character stats (Health, Stress, XP) and ship status.
+- **Control Buttons:** Context-sensitive buttons (e.g., "Fire Phasers", "Warp") appear for common actions, but typing commands offers more flexibility.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Core Commands
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**Navigation:**
+- `MOVE [LOCATION]`: Move to a specific room (e.g., `MOVE BRIDGE`, `MOVE ENGINEERING`).
+- `WARP [SYSTEM]`: Travel to a different star system (e.g., `WARP WOLF 359`).
+- `LOOK`: Re-examine the current location.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+**Interaction:**
+- `TALK [NAME]`: Start a conversation with an NPC (e.g., `TALK PICARD`, `TALK WORF`).
+- `SCAN`: Use your tricorder or ship sensors to analyze the area.
+- `GET [ITEM]`: Pick up an item.
+- `USE [ITEM]`: Use an item in your inventory.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Ship Management:**
+- `STATUS`: Display detailed ship status.
+- `POWER [SYSTEM] [AMOUNT]`: Adjust power distribution (e.g., `POWER SHIELDS 100`, `POWER WEAPONS 50`).
+- `UPGRADE [SYSTEM]`: (Engineering Only) Improve ship systems using XP (e.g., `UPGRADE PHASERS`).
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+**Combat:**
+- `RED ALERT`: Raise shields and arm weapons.
+- `FIRE PHASERS`: Attack with phasers (requires energy).
+- `FIRE TORPEDOES`: Attack with photon torpedoes (requires ammo).
+- `EVASIVE`: Perform evasive maneuvers to increase dodge chance.
+- `REPAIR`: Attempt emergency repairs on the hull (requires Engineering skill).
+- `SHIELDS UP` / `SHIELDS DOWN`: Toggle shields.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Missions
+Follow the mission log in the main display. Objectives will guide you through the story, from routine patrols to major conflicts like the Battle of Wolf 359.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Tips:**
+- **Save Often:** The game autosaves your progress.
+- **Watch Your Energy:** Combat drains ship energy. Balance power between Shields, Weapons, and Engines.
+- **Skill Checks:** Dialogue and actions often require specific skills (e.g., Diplomacy to negotiate, Science to scan anomalies).
