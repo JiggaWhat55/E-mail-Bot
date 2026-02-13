@@ -67,6 +67,13 @@ export interface ShipStatus {
     weapons: number; // 0-100%
     engines: number; // 0-100%
   };
+  systems: {
+    warp: number;
+    sensors: number;
+    communications: number;
+    weapons: number;
+    transporter: number;
+  };
 }
 
 export interface Enemy {

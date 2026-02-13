@@ -20,7 +20,7 @@ interface GameContextType {
   improveAttribute: (attrName: string) => void;
   improveSkill: (skillName: string) => void;
   upgradeShip: (system: 'shields' | 'phasers' | 'engines') => void;
-  combatAction: (action: 'evasive' | 'repair') => void;
+  combatAction: (action: 'evasive' | 'repair', target?: string) => void;
   resetGame: () => void;
   pickupItem: (itemId: string) => void;
   dropItem: (itemId: string) => void;
@@ -53,6 +53,13 @@ const defaultState: GameState = {
       shields: 33,
       weapons: 33,
       engines: 33
+    },
+    systems: {
+      warp: 100,
+      sensors: 100,
+      communications: 100,
+      weapons: 100,
+      transporter: 100
     }
   },
   enemy: null,
@@ -486,7 +493,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     setState(prev => {
         if (prev.gamePhase !== 'combat' || !prev.enemy) return prev;
 
-        const hitChance = 0.3 + (prev.ship.power.weapons / 200);
+        // Weapon System Health Check
+        if (prev.ship.systems.weapons < 25) {
+             return {
+                ...prev,
+                log: [...prev.log, { id: Date.now().toString(), text: 'Weapons systems offline! Cannot fire!', type: 'combat' as const, timestamp: prev.stardate.toFixed(1) }]
+             };
+        }
+
+        let hitChance = 0.3 + (prev.ship.power.weapons / 200);
+        if (prev.ship.systems.weapons < 50) hitChance -= 0.2; // Damaged penalty
+
         const hit = Math.random() < hitChance;
 
         let newLogs: LogEntry[] = [];
@@ -569,9 +586,22 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                 let newShields = newShip.shields - damage;
                 let newHull = newShip.hull;
 
+                // Hull Damage Logic
                 if (newShields < 0) {
                     newHull += newShields;
                     newShields = 0;
+
+                    // System Damage Chance (25% per hit if hull damaged)
+                    if (Math.random() < 0.25) {
+                        const systems = ['warp', 'sensors', 'communications', 'weapons', 'transporter'];
+                        const targetSys = systems[Math.floor(Math.random() * systems.length)] as keyof typeof newShip.systems;
+                        const dmg = Math.floor(Math.random() * 20) + 10;
+                        newShip.systems = {
+                             ...newShip.systems,
+                             [targetSys]: Math.max(0, newShip.systems[targetSys] - dmg)
+                        };
+                        newLogs.push({ id: Date.now().toString() + 'sys', text: `WARNING: ${targetSys.toUpperCase()} system damaged! Integrity: ${newShip.systems[targetSys]}%`, type: 'combat' as const, timestamp: prev.stardate.toFixed(1) });
+                    }
                 }
 
                 newShip.shields = newShields;
@@ -651,7 +681,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const combatAction = (action: 'evasive' | 'repair') => {
+  const combatAction = (action: 'evasive' | 'repair', target?: string) => {
      setState(prev => {
          if (prev.gamePhase !== 'combat') return prev;
 
@@ -670,10 +700,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
              // Roll for repair
              const engSkill = prev.character?.skills['Engineering']?.value || 0;
              const roll = Math.floor(Math.random() * 20) + 1;
+
              if (roll <= engSkill + 10) { // Base difficulty 10
                  const amount = 15 + engSkill * 2;
-                 newShip.hull = Math.min(newShip.maxHull, newShip.hull + amount);
-                 newLog.push({ id: Date.now().toString(), text: `Emergency Repairs successful. Hull +${amount}%`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) });
+
+                 if (target && ['warp', 'sensors', 'communications', 'weapons', 'transporter'].includes(target.toLowerCase())) {
+                     const sysKey = target.toLowerCase() as keyof typeof newShip.systems;
+                     newShip.systems = {
+                        ...newShip.systems,
+                        [sysKey]: Math.min(100, newShip.systems[sysKey] + amount)
+                     };
+                     newLog.push({ id: Date.now().toString(), text: `Emergency Repairs on ${sysKey.toUpperCase()} successful. Integrity +${amount}%`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) });
+                 } else {
+                     newShip.hull = Math.min(newShip.maxHull, newShip.hull + amount);
+                     newLog.push({ id: Date.now().toString(), text: `Emergency Repairs successful. Hull +${amount}%`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) });
+                 }
              } else {
                  newLog.push({ id: Date.now().toString(), text: `Repair attempt failed!`, type: 'combat' as const, timestamp: prev.stardate.toFixed(1) });
              }

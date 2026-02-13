@@ -55,9 +55,20 @@ export const MainGame: FC = () => {
        } else if (mainCmd === 'EVASIVE') {
           combatAction('evasive');
        } else if (mainCmd === 'REPAIR') {
-          combatAction('repair');
+          if (arg) {
+             const system = arg.trim();
+             if (['warp', 'sensors', 'communications', 'weapons', 'transporter'].includes(system.toLowerCase())) {
+                 combatAction('repair', system);
+             } else {
+                 addLog('Unknown system. Usage: REPAIR [WARP|SENSORS|COMMUNICATIONS|WEAPONS|TRANSPORTER]', 'system');
+             }
+          } else {
+             combatAction('repair'); // Default to hull
+          }
        } else if (mainCmd === 'STATUS') {
           addLog(`Shields: ${state.ship.shields}%\nHull: ${state.ship.hull}%\nTorpedoes: ${state.ship.torpedoes}`, 'system');
+          const sys = state.ship.systems;
+          addLog(`Systems Integrity: Warp ${sys.warp}% | Sensors ${sys.sensors}% | Weapons ${sys.weapons}% | Comms ${sys.communications}%`, 'system');
           addLog(`Power: Shields ${state.ship.power.shields}% | Weapons ${state.ship.power.weapons}% | Engines ${state.ship.power.engines}%`, 'system');
           if (state.enemy) {
              addLog(`Target: ${state.enemy.name}\nShields: ${state.enemy.shields}%\nHull: ${state.enemy.hull}%`, 'combat');
@@ -80,7 +91,9 @@ export const MainGame: FC = () => {
     } else {
        // Normal Commands
        if (mainCmd === 'STATUS') {
-          addLog(`Ship Systems: NOMINAL\nShields: ${state.ship.shields}%\nHull: ${state.ship.hull}%\nWarp Core: ONLINE\nLocation: SECTOR 001`, 'system');
+          const sys = state.ship.systems;
+          addLog(`Ship Systems: NOMINAL\nShields: ${state.ship.shields}%\nHull: ${state.ship.hull}%`, 'system');
+          addLog(`Integrity: Warp ${sys.warp}% | Sensors ${sys.sensors}% | Weapons ${sys.weapons}% | Comms ${sys.communications}%`, 'system');
           addLog(`Power: Shields ${state.ship.power.shields}% | Weapons ${state.ship.power.weapons}% | Engines ${state.ship.power.engines}%`, 'system');
        } else if (mainCmd === 'SCAN') {
           const result = performTask('Intellect', 'Science', 'routine', 'Scanning area');
@@ -437,6 +450,14 @@ export const MainGame: FC = () => {
                           <div className="flex justify-between text-xs text-white mt-2">
                              <span>TORPEDOES</span>
                              <span>{state.ship.torpedoes}</span>
+                          </div>
+
+                          <div className="mt-2 pt-2 border-t border-lcars-red/30 grid grid-cols-2 gap-1">
+                              {Object.entries(state.ship.systems).map(([key, val]) => (
+                                  <div key={key} className={`text-[10px] uppercase ${val < 50 ? 'text-lcars-red animate-pulse' : 'text-lcars-light-blue'}`}>
+                                      {key.slice(0,4)}: {val}%
+                                  </div>
+                              ))}
                           </div>
                        </div>
 
