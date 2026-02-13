@@ -26,9 +26,18 @@ export const LOCATIONS: Record<string, Location> = {
     name: 'Turbolift',
     description: 'A standard turbolift car. Voice command activated.',
     availableActions: [],
-    exits: ['bridge', 'engineering', 'sickbay', 'tenforward', 'transporter', 'quarters', 'cargo'],
+    exits: ['bridge', 'engineering', 'sickbay', 'tenforward', 'transporter', 'quarters', 'cargo', 'holodeck'],
     items: [],
     npcs: []
+  },
+  holodeck: {
+    id: 'holodeck',
+    name: 'Holodeck 1',
+    description: 'The holodeck arch stands ready. The grid of yellow and black lines stretches to infinity. Type "LOAD [PROGRAM]" to begin simulation.',
+    availableActions: ['load_program', 'list_programs'],
+    exits: ['turbolift'],
+    items: [],
+    npcs: ['barclay']
   },
   engineering: {
     id: 'engineering',

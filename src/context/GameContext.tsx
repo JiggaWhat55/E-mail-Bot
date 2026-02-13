@@ -6,6 +6,7 @@ import { MISSIONS } from '../data/missions';
 import { ITEMS } from '../data/items';
 import { NPCS } from '../data/npcs';
 import { RANDOM_ENEMIES } from '../data/enemies';
+import { HOLODECK_PROGRAMS } from '../data/holodeck';
 
 interface GameContextType {
   state: GameState;
@@ -29,6 +30,8 @@ interface GameContextType {
   startDialogue: (npcId: string) => void;
   answerDialogue: (optionId: string) => void;
   endDialogue: () => void;
+  loadHolodeckProgram: (programId: string) => void;
+  exitHolodeck: () => void;
 }
 
 const defaultState: GameState = {
@@ -1011,8 +1014,58 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('trek_rpg_state');
   };
 
+  const loadHolodeckProgram = (programId: string) => {
+     const program = HOLODECK_PROGRAMS[programId];
+     if (!program) {
+         addLog(`Error: Program '${programId}' not found.`, 'system');
+         return;
+     }
+
+     setState(prev => ({
+         ...prev,
+         currentLocation: program.startingLocation,
+         log: [...prev.log,
+             { id: Date.now().toString(), text: `Computer: Loading simulation "${program.name}"...`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) },
+             { id: Date.now().toString() + '1', text: program.description, type: 'narrative' as const, timestamp: prev.stardate.toFixed(1) },
+             { id: Date.now().toString() + '2', text: program.startingLocation.description, type: 'narrative' as const, timestamp: prev.stardate.toFixed(1) }
+         ]
+     }));
+
+     if (program.enemy) {
+         // Custom combat trigger for holodeck
+         // Wait a moment then spawn
+         setTimeout(() => {
+             setState(prev => ({
+                 ...prev,
+                 gamePhase: 'combat',
+                 enemy: program.enemy || null,
+                 log: [...prev.log, { id: Date.now().toString(), text: `Simulation Active. ${program.enemy?.name} approaching!`, type: 'combat' as const, timestamp: prev.stardate.toFixed(1) }]
+             }));
+         }, 2000);
+     }
+  };
+
+  const exitHolodeck = () => {
+     setState(prev => {
+         if (prev.gamePhase === 'combat') {
+             return {
+                 ...prev,
+                 gamePhase: 'playing',
+                 enemy: null,
+                 currentLocation: LOCATIONS['holodeck'],
+                 log: [...prev.log, { id: Date.now().toString(), text: `Computer: Arch! Simulation ended.`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) }]
+             };
+         }
+         return {
+             ...prev,
+             currentLocation: LOCATIONS['holodeck'],
+             log: [...prev.log, { id: Date.now().toString(), text: `Computer: Arch! Simulation ended.`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) }]
+         };
+     });
+  };
+
   return (
-    <GameContext.Provider value={{ state, createCharacter, addLog, advanceStardate, setLocation, performTask, triggerEvent, startCombat, playerAttack, improveAttribute, improveSkill, upgradeShip, combatAction, resetGame, pickupItem, dropItem, useItem, setPower, startDialogue, answerDialogue, endDialogue }}>
+    <GameContext.Provider value={{ state, createCharacter, addLog, advanceStardate, setLocation, performTask, triggerEvent, startCombat, playerAttack, improveAttribute, improveSkill, upgradeShip, combatAction, resetGame, pickupItem, dropItem, useItem, setPower, startDialogue, answerDialogue, endDialogue, loadHolodeckProgram, exitHolodeck }}>
       {children}
     </GameContext.Provider>
   );
