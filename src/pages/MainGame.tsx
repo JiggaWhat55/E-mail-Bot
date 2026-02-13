@@ -113,23 +113,27 @@ export const MainGame: FC = () => {
               );
 
               if (targetKey) {
-                 if (targetKey === 'neutral_zone') {
-                     if (state.currentLocation?.id === 'bridge') {
-                        setLocation(LOCATIONS[targetKey]);
-                        triggerEvent('WARP', targetKey);
-                        addLog(`WARP ENGAGED. En route to ${LOCATIONS[targetKey].name}...`, 'system');
-                     } else {
-                        addLog('Warp command only available from Main Bridge.', 'system');
-                     }
-                 } else if (targetKey === 'bridge') {
-                     if (state.currentLocation?.id === 'neutral_zone') {
+                 const targetLoc = LOCATIONS[targetKey];
+                 // Check if valid warp target (not a ship room)
+                 const isShipLocation = ['bridge', 'engineering', 'sickbay', 'holodeck', 'ten_forward', 'transporter_room', 'observation_lounge', 'turbolift', 'quarters', 'cargo', 'observation', 'transporter', 'tenforward'].includes(targetLoc.id);
+
+                 if (isShipLocation) {
+                    if (targetKey === 'bridge' && !state.currentLocation?.id.startsWith('bridge')) {
+                        // Allow warping back to bridge from space
                         setLocation(LOCATIONS[targetKey]);
                         addLog('Warping back to Sector 001 (USS Enterprise).', 'narrative');
-                     } else {
-                        addLog('Already on the ship. Use MOVE.', 'system');
-                     }
+                    } else {
+                        addLog(`Cannot warp to ${targetLoc.name}. Internal location. Use MOVE.`, 'system');
+                    }
                  } else {
-                     addLog(`Cannot warp to ${LOCATIONS[targetKey].name}. Internal location.`, 'system');
+                    // It's a space location
+                    if (state.currentLocation?.id === 'bridge') {
+                        setLocation(targetLoc);
+                        triggerEvent('WARP', targetKey);
+                        addLog(`WARP ENGAGED. En route to ${targetLoc.name}...`, 'system');
+                    } else {
+                        addLog('Warp command only available from Main Bridge.', 'system');
+                    }
                  }
               } else {
                  addLog(`Unknown destination: ${arg}`, 'system');

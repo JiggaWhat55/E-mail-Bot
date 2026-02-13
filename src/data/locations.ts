@@ -1,6 +1,8 @@
 import type { Location } from '../types/game';
+import { STAR_SYSTEMS } from './systems';
 
 export const LOCATIONS: Record<string, Location> = {
+  ...STAR_SYSTEMS, // Spread new systems
   bridge: {
     id: 'bridge',
     name: 'Main Bridge',
