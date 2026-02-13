@@ -5,6 +5,7 @@ import { LOCATIONS } from '../data/locations';
 import { MISSIONS } from '../data/missions';
 import { ITEMS } from '../data/items';
 import { NPCS } from '../data/npcs';
+import { RANDOM_ENEMIES } from '../data/enemies';
 
 interface GameContextType {
   state: GameState;
@@ -378,12 +379,47 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       addLog('Cannot leave area while in combat!', 'combat');
       return;
     }
-    setState(prev => ({
-      ...prev,
-      currentLocation: location
-    }));
-    addLog(`Arrived at ${location.name}.`, 'system');
-    addLog(location.description, 'narrative');
+
+    // Check for random encounter if warping (location is a system)
+    // We assume any location with "System" or specific IDs are warp targets
+    // For simplicity, let's say if we move to a location that is NOT a room on the ship (bridge, sickbay etc)
+    // AND it's not a scripted mission location that handles its own combat (like wolf_359 or neutral_zone initially)
+    const isShipLocation = ['bridge', 'engineering', 'sickbay', 'holodeck', 'ten_forward', 'transporter_room', 'observation_lounge', 'turbolift'].includes(location.id);
+    const isSafeLocation = ['earth_spacedock', 'starbase_74'].includes(location.id);
+
+    let randomEncounter: Enemy | null = null;
+
+    // 15% chance of random encounter when warping to a non-safe system
+    if (!isShipLocation && !isSafeLocation && Math.random() < 0.15) {
+       // Don't trigger if specific mission logic handles it (e.g. neutral_zone in mission 2, wolf_359 in mission 4)
+       const missionOverride = (state.activeMissionId === 'neutral_zone' && location.id === 'neutral_zone') ||
+                               (state.activeMissionId === 'resistance' && location.id === 'wolf_359');
+
+       if (!missionOverride) {
+          const randomIndex = Math.floor(Math.random() * RANDOM_ENEMIES.length);
+          randomEncounter = RANDOM_ENEMIES[randomIndex];
+       }
+    }
+
+    if (randomEncounter) {
+        setState(prev => ({
+            ...prev,
+            currentLocation: location,
+            gamePhase: 'combat',
+            enemy: randomEncounter,
+            log: [...prev.log,
+                { id: Date.now().toString(), text: `Arrived at ${location.name}.`, type: 'system' as const, timestamp: prev.stardate.toFixed(1) },
+                { id: Date.now().toString() + '1', text: `RED ALERT! ${randomEncounter!.name} detected! ${randomEncounter!.description || ''}`, type: 'combat' as const, timestamp: prev.stardate.toFixed(1) }
+            ]
+        }));
+    } else {
+        setState(prev => ({
+            ...prev,
+            currentLocation: location
+        }));
+        addLog(`Arrived at ${location.name}.`, 'system');
+        addLog(location.description, 'narrative');
+    }
 
     triggerEvent('VISIT_LOCATION', location.id);
   };

@@ -71,6 +71,7 @@ export interface ShipStatus {
 
 export interface Enemy {
   name: string;
+  description?: string;
   shields: number;
   maxShields: number;
   hull: number;
