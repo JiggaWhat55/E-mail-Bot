@@ -1,23 +1,42 @@
-import { GameProvider, useGame } from './context/GameContext';
-import { CharacterCreation } from './pages/CharacterCreation';
-import { MainGame } from './pages/MainGame';
+import React, { useState } from 'react';
+import { GameProvider } from './context/GameProvider';
+import { Layout, type View } from './components/Layout';
+import { Dashboard } from './components/Dashboard';
+import { FleetManager } from './components/FleetManager';
+import { RouteManager } from './components/RouteManager';
+import { AirportList } from './components/AirportList';
 
-const AppContent = () => {
-  const { state } = useGame();
+const AppContent: React.FC = () => {
+  const [currentView, setCurrentView] = useState<View>('dashboard');
 
-  if (state.gamePhase === 'creation' || !state.character) {
-    return <CharacterCreation />;
-  }
+  const renderView = () => {
+    switch (currentView) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'fleet':
+        return <FleetManager />;
+      case 'routes':
+        return <RouteManager />;
+      case 'airports':
+        return <AirportList />;
+      default:
+        return <Dashboard />;
+    }
+  };
 
-  return <MainGame />;
+  return (
+    <Layout currentView={currentView} onViewChange={setCurrentView}>
+      {renderView()}
+    </Layout>
+  );
 };
 
-const App = () => {
+function App() {
   return (
     <GameProvider>
       <AppContent />
     </GameProvider>
   );
-};
+}
 
 export default App;
